@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C)2019 Teluu Inc. (http://www.teluu.com)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <pjmedia-codec/vpx.h>
 #include <pjmedia/vid_codec_util.h>
@@ -22,11 +22,11 @@
 #include <pj/math.h>
 
 #if defined(PJMEDIA_HAS_VPX_CODEC) && \
-            PJMEDIA_HAS_VPX_CODEC != 0 && \
+    PJMEDIA_HAS_VPX_CODEC != 0 &&     \
     defined(PJMEDIA_HAS_VIDEO) && (PJMEDIA_HAS_VIDEO != 0)
 
 #ifdef _MSC_VER
-#   pragma comment( lib, "vpx.lib")
+#pragma comment(lib, "vpx.lib")
 #endif
 
 #include <pjmedia-codec/vpx_packetizer.h>
@@ -40,36 +40,36 @@
 /*
  * Constants
  */
-#define THIS_FILE               "vpx.c"
+#define THIS_FILE "vpx.c"
 
 #if (defined(PJ_DARWINOS) && PJ_DARWINOS != 0 && TARGET_OS_IPHONE) || \
-     defined(__ANDROID__)
-#  define DEFAULT_WIDTH         352
-#  define DEFAULT_HEIGHT        288
+    defined(__ANDROID__)
+#define DEFAULT_WIDTH 352
+#define DEFAULT_HEIGHT 288
 #else
-#  define DEFAULT_WIDTH         720
-#  define DEFAULT_HEIGHT        480
+#define DEFAULT_WIDTH 720
+#define DEFAULT_HEIGHT 480
 #endif
 
-#define DEFAULT_FPS             15
-#define DEFAULT_AVG_BITRATE     200000
-#define DEFAULT_MAX_BITRATE     200000
+#define DEFAULT_FPS 15
+#define DEFAULT_AVG_BITRATE 200000
+#define DEFAULT_MAX_BITRATE 200000
 
-#define MAX_RX_RES              1200
+#define MAX_RX_RES 1200
 
 /* VPX VP8 default PT */
-#define VPX_VP8_PT              PJMEDIA_RTP_PT_VP8
+#define VPX_VP8_PT PJMEDIA_RTP_PT_VP8
 /* VPX VP9 default PT */
-#define VPX_VP9_PT              PJMEDIA_RTP_PT_VP9
+#define VPX_VP9_PT PJMEDIA_RTP_PT_VP9
 
 /*
  * Factory operations.
  */
 static pj_status_t vpx_test_alloc(pjmedia_vid_codec_factory *factory,
-                                  const pjmedia_vid_codec_info *info );
+                                  const pjmedia_vid_codec_info *info);
 static pj_status_t vpx_default_attr(pjmedia_vid_codec_factory *factory,
                                     const pjmedia_vid_codec_info *info,
-                                    pjmedia_vid_codec_param *attr );
+                                    pjmedia_vid_codec_param *attr);
 static pj_status_t vpx_enum_info(pjmedia_vid_codec_factory *factory,
                                  unsigned *count,
                                  pjmedia_vid_codec_info codecs[]);
@@ -77,16 +77,15 @@ static pj_status_t vpx_alloc_codec(pjmedia_vid_codec_factory *factory,
                                    const pjmedia_vid_codec_info *info,
                                    pjmedia_vid_codec **p_codec);
 static pj_status_t vpx_dealloc_codec(pjmedia_vid_codec_factory *factory,
-                                     pjmedia_vid_codec *codec );
-
+                                     pjmedia_vid_codec *codec);
 
 /*
  * Codec operations
  */
 static pj_status_t vpx_codec_init(pjmedia_vid_codec *codec,
-                                  pj_pool_t *pool );
+                                  pj_pool_t *pool);
 static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
-                                  pjmedia_vid_codec_param *param );
+                                  pjmedia_vid_codec_param *param);
 static pj_status_t vpx_codec_close(pjmedia_vid_codec *codec);
 static pj_status_t vpx_codec_modify(pjmedia_vid_codec *codec,
                                     const pjmedia_vid_codec_param *param);
@@ -110,75 +109,73 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
 
 /* Definition for VPX codecs operations. */
 static pjmedia_vid_codec_op vpx_codec_op =
-{
-    &vpx_codec_init,
-    &vpx_codec_open,
-    &vpx_codec_close,
-    &vpx_codec_modify,
-    &vpx_codec_get_param,
-    &vpx_codec_encode_begin,
-    &vpx_codec_encode_more,
-    &vpx_codec_decode_,
-    NULL
-};
+    {
+        &vpx_codec_init,
+        &vpx_codec_open,
+        &vpx_codec_close,
+        &vpx_codec_modify,
+        &vpx_codec_get_param,
+        &vpx_codec_encode_begin,
+        &vpx_codec_encode_more,
+        &vpx_codec_decode_,
+        NULL};
 
 /* Definition for VPX codecs factory operations. */
 static pjmedia_vid_codec_factory_op vpx_factory_op =
-{
-    &vpx_test_alloc,
-    &vpx_default_attr,
-    &vpx_enum_info,
-    &vpx_alloc_codec,
-    &vpx_dealloc_codec
-};
-
+    {
+        &vpx_test_alloc,
+        &vpx_default_attr,
+        &vpx_enum_info,
+        &vpx_alloc_codec,
+        &vpx_dealloc_codec};
 
 static struct vpx_factory
 {
-    pjmedia_vid_codec_factory    base;
-    pjmedia_vid_codec_mgr       *mgr;
-    pj_pool_factory             *pf;
-    pj_pool_t                   *pool;
+    pjmedia_vid_codec_factory base;
+    pjmedia_vid_codec_mgr *mgr;
+    pj_pool_factory *pf;
+    pj_pool_t *pool;
 } vpx_factory;
-
 
 typedef struct vpx_codec_data
 {
-    pj_pool_t                   *pool;
-    pjmedia_vid_codec_param     *prm;
-    pj_bool_t                    whole;
-    pjmedia_vpx_packetizer      *pktz;
+    pj_pool_t *pool;
+    pjmedia_vid_codec_param *prm;
+    pj_bool_t whole;
+    pjmedia_vpx_packetizer *pktz;
 
     /* Encoder */
-    vpx_codec_iface_t           *(*enc_if)();
-    vpx_codec_ctx_t              enc;
-    vpx_codec_iter_t             enc_iter;
-    unsigned                     enc_input_size;
-    pj_uint8_t                  *enc_frame_whole;
-    unsigned                     enc_frame_size;
-    unsigned                     enc_processed;
-    pj_bool_t                    enc_frame_is_keyframe;
-    pj_timestamp                 ets;
+    vpx_codec_iface_t *(*enc_if)();
+    vpx_codec_ctx_t enc;
+    vpx_codec_iter_t enc_iter;
+    unsigned enc_input_size;
+    pj_uint8_t *enc_frame_whole;
+    unsigned enc_frame_size;
+    unsigned enc_processed;
+    pj_bool_t enc_frame_is_keyframe;
+    pj_timestamp ets;
 
     /* Decoder */
-    vpx_codec_iface_t           *(*dec_if)();
-    vpx_codec_ctx_t              dec;
-    pj_uint8_t                  *dec_buf;
-    unsigned                     dec_buf_size;
+    vpx_codec_iface_t *(*dec_if)();
+    vpx_codec_ctx_t dec;
+    pj_uint8_t *dec_buf;
+    unsigned dec_buf_size;
 } vpx_codec_data;
 
-
-PJ_DEF(pj_status_t) pjmedia_codec_vpx_vid_init(pjmedia_vid_codec_mgr *mgr,
-                                               pj_pool_factory *pf)
+PJ_DEF(pj_status_t)
+pjmedia_codec_vpx_vid_init(pjmedia_vid_codec_mgr *mgr,
+                           pj_pool_factory *pf)
 {
     pj_status_t status;
 
-    if (vpx_factory.pool != NULL) {
+    if (vpx_factory.pool != NULL)
+    {
         /* Already initialized. */
         return PJ_SUCCESS;
     }
 
-    if (!mgr) mgr = pjmedia_vid_codec_mgr_instance();
+    if (!mgr)
+        mgr = pjmedia_vid_codec_mgr_instance();
     PJ_ASSERT_RETURN(mgr, PJ_EINVAL);
 
     /* Create VPX codec factory. */
@@ -196,7 +193,7 @@ PJ_DEF(pj_status_t) pjmedia_codec_vpx_vid_init(pjmedia_vid_codec_mgr *mgr,
     if (status != PJ_SUCCESS)
         goto on_error;
 
-    PJ_LOG(4,(THIS_FILE, "VPX codec initialized"));
+    PJ_LOG(4, (THIS_FILE, "VPX codec initialized"));
 
     /* Done. */
     return PJ_SUCCESS;
@@ -210,11 +207,13 @@ on_error:
 /*
  * Unregister VPX codecs factory from pjmedia endpoint.
  */
-PJ_DEF(pj_status_t) pjmedia_codec_vpx_vid_deinit(void)
+PJ_DEF(pj_status_t)
+pjmedia_codec_vpx_vid_deinit(void)
 {
     pj_status_t status = PJ_SUCCESS;
 
-    if (vpx_factory.pool == NULL) {
+    if (vpx_factory.pool == NULL)
+    {
         /* Already deinitialized */
         return PJ_SUCCESS;
     }
@@ -231,7 +230,7 @@ PJ_DEF(pj_status_t) pjmedia_codec_vpx_vid_deinit(void)
 }
 
 static pj_status_t vpx_test_alloc(pjmedia_vid_codec_factory *factory,
-                                  const pjmedia_vid_codec_info *info )
+                                  const pjmedia_vid_codec_info *info)
 {
     PJ_ASSERT_RETURN(factory == &vpx_factory.base, PJ_EINVAL);
 
@@ -246,7 +245,7 @@ static pj_status_t vpx_test_alloc(pjmedia_vid_codec_factory *factory,
 
 static pj_status_t vpx_default_attr(pjmedia_vid_codec_factory *factory,
                                     const pjmedia_vid_codec_info *info,
-                                    pjmedia_vid_codec_param *attr )
+                                    pjmedia_vid_codec_param *attr)
 {
     PJ_ASSERT_RETURN(factory == &vpx_factory.base, PJ_EINVAL);
     PJ_ASSERT_RETURN(info && attr, PJ_EINVAL);
@@ -271,10 +270,10 @@ static pj_status_t vpx_default_attr(pjmedia_vid_codec_factory *factory,
      * MUST be provided.
      */
     attr->dec_fmtp.cnt = 2;
-    attr->dec_fmtp.param[0].name = pj_str((char*)"max-fr");
-    attr->dec_fmtp.param[0].val = pj_str((char*)"30");
-    attr->dec_fmtp.param[1].name = pj_str((char*)" max-fs");
-    attr->dec_fmtp.param[1].val = pj_str((char*)"580");
+    attr->dec_fmtp.param[0].name = pj_str((char *)"max-fr");
+    attr->dec_fmtp.param[0].val = pj_str((char *)"30");
+    attr->dec_fmtp.param[1].name = pj_str((char *)" max-fs");
+    attr->dec_fmtp.param[1].val = pj_str((char *)"580");
 
     /* Bitrate */
     attr->enc_fmt.det.vid.avg_bps = DEFAULT_AVG_BITRATE;
@@ -298,23 +297,25 @@ static pj_status_t vpx_enum_info(pjmedia_vid_codec_factory *factory,
 #if PJMEDIA_HAS_VPX_CODEC_VP8
     info[i].fmt_id = PJMEDIA_FORMAT_VP8;
     info[i].pt = VPX_VP8_PT;
-    info[i].encoding_name = pj_str((char*)"VP8");
-    info[i].encoding_desc = pj_str((char*)"VPX VP8 codec");
+    info[i].encoding_name = pj_str((char *)"VP8");
+    info[i].encoding_desc = pj_str((char *)"VPX VP8 codec");
     i++;
 #endif
 
 #if PJMEDIA_HAS_VPX_CODEC_VP9
-    if (i + 1 < *count) {
+    if (i + 1 < *count)
+    {
         info[i].fmt_id = PJMEDIA_FORMAT_VP9;
         info[i].pt = VPX_VP9_PT;
-        info[i].encoding_name = pj_str((char*)"VP9");
-        info[i].encoding_desc = pj_str((char*)"VPX VP9 codec");
+        info[i].encoding_name = pj_str((char *)"VP9");
+        info[i].encoding_desc = pj_str((char *)"VPX VP9 codec");
         i++;
     }
 #endif
 
     *count = i;
-    for (i = 0; i < *count; i++) {
+    for (i = 0; i < *count; i++)
+    {
         info[i].clock_rate = 90000;
         info[i].dir = PJMEDIA_DIR_ENCODING_DECODING;
         info[i].dec_fmt_id_cnt = 1;
@@ -330,7 +331,6 @@ static pj_status_t vpx_enum_info(pjmedia_vid_codec_factory *factory,
     }
 
     return PJ_SUCCESS;
-
 }
 
 static pj_status_t vpx_alloc_codec(pjmedia_vid_codec_factory *factory,
@@ -361,10 +361,13 @@ static pj_status_t vpx_alloc_codec(pjmedia_vid_codec_factory *factory,
     codec->codec_data = vpx_data;
 
     /* encoder and decoder interfaces */
-    if (info->fmt_id == PJMEDIA_FORMAT_VP8) {
+    if (info->fmt_id == PJMEDIA_FORMAT_VP8)
+    {
         vpx_data->enc_if = &vpx_codec_vp8_cx;
         vpx_data->dec_if = &vpx_codec_vp8_dx;
-    } else if (info->fmt_id == PJMEDIA_FORMAT_VP9) {
+    }
+    else if (info->fmt_id == PJMEDIA_FORMAT_VP9)
+    {
         vpx_data->enc_if = &vpx_codec_vp9_cx;
         vpx_data->dec_if = &vpx_codec_vp9_dx;
     }
@@ -374,7 +377,7 @@ static pj_status_t vpx_alloc_codec(pjmedia_vid_codec_factory *factory,
 }
 
 static pj_status_t vpx_dealloc_codec(pjmedia_vid_codec_factory *factory,
-                                     pjmedia_vid_codec *codec )
+                                     pjmedia_vid_codec *codec)
 {
     vpx_codec_data *vpx_data;
 
@@ -382,7 +385,7 @@ static pj_status_t vpx_dealloc_codec(pjmedia_vid_codec_factory *factory,
 
     PJ_UNUSED_ARG(factory);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
     vpx_data->enc_if = NULL;
     vpx_data->dec_if = NULL;
 
@@ -391,7 +394,7 @@ static pj_status_t vpx_dealloc_codec(pjmedia_vid_codec_factory *factory,
 }
 
 static pj_status_t vpx_codec_init(pjmedia_vid_codec *codec,
-                                  pj_pool_t *pool )
+                                  pj_pool_t *pool)
 {
     PJ_ASSERT_RETURN(codec && pool, PJ_EINVAL);
     PJ_UNUSED_ARG(codec);
@@ -400,29 +403,30 @@ static pj_status_t vpx_codec_init(pjmedia_vid_codec *codec,
 }
 
 static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
-                                  pjmedia_vid_codec_param *codec_param )
+                                  pjmedia_vid_codec_param *codec_param)
 {
-    vpx_codec_data              *vpx_data;
-    pjmedia_vid_codec_param     *param;
-    pjmedia_vid_codec_vpx_fmtp   vpx_fmtp;
+    vpx_codec_data *vpx_data;
+    pjmedia_vid_codec_param *param;
+    pjmedia_vid_codec_vpx_fmtp vpx_fmtp;
     vpx_codec_enc_cfg_t cfg;
     vpx_codec_err_t res;
-    pjmedia_vpx_packetizer_cfg  pktz_cfg;
+    pjmedia_vpx_packetizer_cfg pktz_cfg;
     unsigned max_res = MAX_RX_RES;
     pj_status_t status;
 
     PJ_ASSERT_RETURN(codec && codec_param, PJ_EINVAL);
 
-    PJ_LOG(5,(THIS_FILE, "Opening codec.."));
+    PJ_LOG(5, (THIS_FILE, "Opening codec.."));
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
     vpx_data->prm = pjmedia_vid_codec_param_clone(vpx_data->pool,
                                                   codec_param);
     param = vpx_data->prm;
     vpx_data->whole = (param->packing == PJMEDIA_VID_PACKING_WHOLE);
 
     /* Apply SDP fmtp to format in codec param */
-    if (!param->ignore_fmtp) {
+    if (!param->ignore_fmtp)
+    {
         status = pjmedia_vid_codec_vpx_apply_fmtp(param);
         if (status != PJ_SUCCESS)
             return status;
@@ -434,11 +438,12 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
 
     /* Init encoder parameters */
     res = vpx_codec_enc_config_default(vpx_data->enc_if(), &cfg, 0);
-    if (res) {
+    if (res)
+    {
         PJ_LOG(3, (THIS_FILE, "Failed to get encoder default config"));
         return PJMEDIA_CODEC_EFAILED;
     }
-    
+
     cfg.g_w = vpx_data->prm->enc_fmt.det.vid.size.w;
     cfg.g_h = vpx_data->prm->enc_fmt.det.vid.size.h;
     /* timebase is the inverse of fps */
@@ -446,7 +451,7 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
     cfg.g_timebase.den = vpx_data->prm->enc_fmt.det.vid.fps.num;
     /* bitrate in KBps */
     cfg.rc_target_bitrate = vpx_data->prm->enc_fmt.det.vid.avg_bps / 1000;
-    
+
     cfg.g_pass = VPX_RC_ONE_PASS;
     cfg.rc_end_usage = VPX_CBR;
     cfg.g_threads = 4;
@@ -459,7 +464,7 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
     cfg.rc_buf_optimal_sz = 500;
     cfg.rc_buf_sz = 600;
     /* kf max distance is 60s. */
-    cfg.kf_max_dist = 60 * vpx_data->prm->enc_fmt.det.vid.fps.num/
+    cfg.kf_max_dist = 60 * vpx_data->prm->enc_fmt.det.vid.fps.num /
                       vpx_data->prm->enc_fmt.det.vid.fps.denum;
     cfg.rc_resize_allowed = 0;
     cfg.rc_dropframe_thresh = 25;
@@ -468,7 +473,8 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
 
     /* Initialize encoder */
     res = vpx_codec_enc_init(&vpx_data->enc, vpx_data->enc_if(), &cfg, 0);
-    if (res) {
+    if (res)
+    {
         PJ_LOG(3, (THIS_FILE, "Failed to initialize encoder"));
         return PJMEDIA_CODEC_EFAILED;
     }
@@ -484,7 +490,8 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
      * Decoder
      */
     res = vpx_codec_dec_init(&vpx_data->dec, vpx_data->dec_if(), NULL, 0);
-    if (res) {
+    if (res)
+    {
         PJ_LOG(3, (THIS_FILE, "Failed to initialize decoder"));
         return PJMEDIA_CODEC_EFAILED;
     }
@@ -494,12 +501,13 @@ static pj_status_t vpx_codec_open(pjmedia_vid_codec *codec,
     if (status != PJ_SUCCESS)
         return status;
 
-    if (vpx_fmtp.max_fs > 0) {
+    if (vpx_fmtp.max_fs > 0)
+    {
         max_res = ((int)pj_isqrt(vpx_fmtp.max_fs * 8)) * 16;
     }
     vpx_data->dec_buf_size = (max_res * max_res * 3 >> 1) + (max_res);
-    vpx_data->dec_buf = (pj_uint8_t*)pj_pool_alloc(vpx_data->pool,
-                                                   vpx_data->dec_buf_size);
+    vpx_data->dec_buf = (pj_uint8_t *)pj_pool_alloc(vpx_data->pool,
+                                                    vpx_data->dec_buf_size);
 
     /* Need to update param back after values are negotiated */
     pj_memcpy(codec_param, param, sizeof(*codec_param));
@@ -522,7 +530,7 @@ static pj_status_t vpx_codec_close(pjmedia_vid_codec *codec)
 
     PJ_ASSERT_RETURN(codec, PJ_EINVAL);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
     vpx_codec_destroy(&vpx_data->enc);
     vpx_codec_destroy(&vpx_data->dec);
 
@@ -545,7 +553,7 @@ static pj_status_t vpx_codec_get_param(pjmedia_vid_codec *codec,
 
     PJ_ASSERT_RETURN(codec && param, PJ_EINVAL);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
     pj_memcpy(param, vpx_data->prm, sizeof(*param));
 
     return PJ_SUCCESS;
@@ -566,7 +574,7 @@ static pj_status_t vpx_codec_encode_begin(pjmedia_vid_codec *codec,
     PJ_ASSERT_RETURN(codec && input && out_size && output && has_more,
                      PJ_EINVAL);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
 
     PJ_ASSERT_RETURN(input->size == vpx_data->enc_input_size,
                      PJMEDIA_CODEC_EFRMINLEN);
@@ -576,7 +584,8 @@ static pj_status_t vpx_codec_encode_begin(pjmedia_vid_codec *codec,
                  vpx_data->prm->enc_fmt.det.vid.size.h,
                  1, (unsigned char *)input->buf);
 
-    if (opt && opt->force_keyframe) {
+    if (opt && opt->force_keyframe)
+    {
         flags |= VPX_EFLAG_FORCE_KF;
     }
 
@@ -586,18 +595,22 @@ static pj_status_t vpx_codec_encode_begin(pjmedia_vid_codec *codec,
 
     res = vpx_codec_encode(&vpx_data->enc, &img, vpx_data->ets.u64, 1,
                            flags, VPX_DL_REALTIME);
-    if (res) {
+    if (res)
+    {
         PJ_LOG(4, (THIS_FILE, "Failed to encode frame %s",
                    vpx_codec_error(&vpx_data->enc)));
         return PJMEDIA_CODEC_EFAILED;
     }
 
-    do {
+    do
+    {
         const vpx_codec_cx_pkt_t *pkt;
 
         pkt = vpx_codec_get_cx_data(&vpx_data->enc, &vpx_data->enc_iter);
-        if (!pkt) break;
-        if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
+        if (!pkt)
+            break;
+        if (pkt->kind == VPX_CODEC_CX_FRAME_PKT)
+        {
             /* We have a valid frame packet */
             vpx_data->enc_frame_whole = pkt->data.frame.buf;
             vpx_data->enc_frame_size = pkt->data.frame.sz;
@@ -606,25 +619,30 @@ static pj_status_t vpx_codec_encode_begin(pjmedia_vid_codec *codec,
                 vpx_data->enc_frame_is_keyframe = PJ_TRUE;
             else
                 vpx_data->enc_frame_is_keyframe = PJ_FALSE;
-                
+
             break;
         }
     } while (1);
 
-    if (vpx_data->enc_frame_size == 0) {
+    if (vpx_data->enc_frame_size == 0)
+    {
         *has_more = PJ_FALSE;
         output->size = 0;
         output->type = PJMEDIA_FRAME_TYPE_NONE;
 
-        if (vpx_data->enc.err) {
+        if (vpx_data->enc.err)
+        {
             PJ_LOG(4, (THIS_FILE, "Failed to get encoded frame %s",
-                                  vpx_codec_error(&vpx_data->enc)));
-        } else {
+                       vpx_codec_error(&vpx_data->enc)));
+        }
+        else
+        {
             return PJ_SUCCESS;
         }
     }
-    
-    if (vpx_data->whole) {
+
+    if (vpx_data->whole)
+    {
         *has_more = PJ_FALSE;
         if (vpx_data->enc_frame_size > out_size)
             return PJMEDIA_CODEC_EFRMTOOSHORT;
@@ -633,18 +651,18 @@ static pj_status_t vpx_codec_encode_begin(pjmedia_vid_codec *codec,
         output->type = PJMEDIA_FRAME_TYPE_VIDEO;
         output->size = vpx_data->enc_frame_size;
         output->bit_info = 0;
-        if (vpx_data->enc_frame_is_keyframe) {
+        if (vpx_data->enc_frame_is_keyframe)
+        {
             output->bit_info |= PJMEDIA_VID_FRM_KEYFRAME;
         }
 
         pj_memcpy(output->buf, vpx_data->enc_frame_whole, output->size);
-        
+
         return PJ_SUCCESS;
     }
 
     return vpx_codec_encode_more(codec, out_size, output, has_more);
 }
-
 
 static pj_status_t vpx_codec_encode_more(pjmedia_vid_codec *codec,
                                          unsigned out_size,
@@ -657,10 +675,11 @@ static pj_status_t vpx_codec_encode_more(pjmedia_vid_codec *codec,
     PJ_ASSERT_RETURN(codec && out_size && output && has_more,
                      PJ_EINVAL);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
-    
-    if (vpx_data->enc_processed < vpx_data->enc_frame_size) {
-        unsigned payload_desc_size = 1;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
+
+    if (vpx_data->enc_processed < vpx_data->enc_frame_size)
+    {
+        unsigned payload_desc_size = 4;
         pj_size_t payload_len = out_size;
         pj_uint8_t *p = (pj_uint8_t *)output->buf;
 
@@ -671,7 +690,8 @@ static pj_status_t vpx_codec_encode_more(pjmedia_vid_codec *codec,
                                        &p,
                                        &payload_len);
 
-        if (status != PJ_SUCCESS) {
+        if (status != PJ_SUCCESS)
+        {
             return status;
         }
         pj_memcpy(p + payload_desc_size,
@@ -681,7 +701,8 @@ static pj_status_t vpx_codec_encode_more(pjmedia_vid_codec *codec,
         output->timestamp = vpx_data->ets;
         output->type = PJMEDIA_FRAME_TYPE_VIDEO;
         output->bit_info = 0;
-        if (vpx_data->enc_frame_is_keyframe) {
+        if (vpx_data->enc_frame_is_keyframe)
+        {
             output->bit_info |= PJMEDIA_VID_FRM_KEYFRAME;
         }
         vpx_data->enc_processed += payload_len;
@@ -710,41 +731,48 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
                      PJ_EINVAL);
     PJ_ASSERT_RETURN(output->buf, PJ_EINVAL);
 
-    vpx_data = (vpx_codec_data*) codec->codec_data;
+    vpx_data = (vpx_codec_data *)codec->codec_data;
 
     /*
      * Step 1: unpacketize the packets/frames
      */
     whole_len = 0;
-    if (vpx_data->whole) {
-        for (i = 0; i < count; ++i) {
-            if (whole_len + packets[i].size > vpx_data->dec_buf_size) {
-                PJ_LOG(4,(THIS_FILE, "Decoding buffer overflow [1]"));
+    if (vpx_data->whole)
+    {
+        for (i = 0; i < count; ++i)
+        {
+            if (whole_len + packets[i].size > vpx_data->dec_buf_size)
+            {
+                PJ_LOG(4, (THIS_FILE, "Decoding buffer overflow [1]"));
                 return PJMEDIA_CODEC_EFRMTOOSHORT;
             }
 
-            pj_memcpy( vpx_data->dec_buf + whole_len,
-                       (pj_uint8_t*)packets[i].buf,
-                       packets[i].size);
+            pj_memcpy(vpx_data->dec_buf + whole_len,
+                      (pj_uint8_t *)packets[i].buf,
+                      packets[i].size);
             whole_len += packets[i].size;
         }
-
-    } else {
-        for (i = 0; i < count; ++i) {
+    }
+    else
+    {
+        for (i = 0; i < count; ++i)
+        {
             unsigned desc_len;
             unsigned packet_size = packets[i].size;
             pj_status_t status;
 
             status = pjmedia_vpx_unpacketize(vpx_data->pktz, packets[i].buf,
                                              packet_size, &desc_len);
-            if (status != PJ_SUCCESS) {
-                PJ_LOG(4,(THIS_FILE, "Unpacketize error"));
+            if (status != PJ_SUCCESS)
+            {
+                PJ_LOG(4, (THIS_FILE, "Unpacketize error"));
                 return status;
             }
 
             packet_size -= desc_len;
-            if (whole_len + packet_size > vpx_data->dec_buf_size) {
-                PJ_LOG(4,(THIS_FILE, "Decoding buffer overflow [2]"));
+            if (whole_len + packet_size > vpx_data->dec_buf_size)
+            {
+                PJ_LOG(4, (THIS_FILE, "Decoding buffer overflow [2]"));
                 return PJMEDIA_CODEC_EFRMTOOSHORT;
             }
 
@@ -757,14 +785,16 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
     /* Decode */
     res = vpx_codec_decode(&vpx_data->dec, vpx_data->dec_buf, whole_len,
                            0, VPX_DL_REALTIME);
-    if (res) {
+    if (res)
+    {
         PJ_LOG(4, (THIS_FILE, "Failed to decode frame %s",
                    vpx_codec_error(&vpx_data->dec)));
         goto on_return;
     }
 
     img = vpx_codec_get_frame(&vpx_data->dec, &iter);
-    if (!img) {
+    if (!img)
+    {
         PJ_LOG(4, (THIS_FILE, "Failed to get decoded frame %s",
                    vpx_codec_error(&vpx_data->dec)));
         goto on_return;
@@ -778,10 +808,10 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
     {
         pjmedia_event event;
 
-        PJ_LOG(4,(THIS_FILE, "Frame size changed: %dx%d --> %dx%d",
-                  vpx_data->prm->dec_fmt.det.vid.size.w,
-                  vpx_data->prm->dec_fmt.det.vid.size.h,
-                  img->d_w, img->d_h));
+        PJ_LOG(4, (THIS_FILE, "Frame size changed: %dx%d --> %dx%d",
+                   vpx_data->prm->dec_fmt.det.vid.size.w,
+                   vpx_data->prm->dec_fmt.det.vid.size.h,
+                   img->d_w, img->d_h));
 
         vpx_data->prm->dec_fmt.det.vid.size.w = img->d_w;
         vpx_data->prm->dec_fmt.det.vid.size.h = img->d_h;
@@ -796,20 +826,22 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
                               PJMEDIA_EVENT_PUBLISH_DEFAULT);
     }
 
-    if (img->d_w * img->d_h * 3/2 > output->size)
+    if (img->d_w * img->d_h * 3 / 2 > output->size)
         return PJMEDIA_CODEC_EFRMTOOSHORT;
 
     output->type = PJMEDIA_FRAME_TYPE_VIDEO;
     output->timestamp = packets[0].timestamp;
 
-    for (plane = 0; plane < 3; ++plane) {
+    for (plane = 0; plane < 3; ++plane)
+    {
         const unsigned char *buf = img->planes[plane];
         const int stride = img->stride[plane];
-        const int w = (plane? img->d_w / 2: img->d_w);
-        const int h = (plane? img->d_h / 2: img->d_h);
+        const int w = (plane ? img->d_w / 2 : img->d_w);
+        const int h = (plane ? img->d_h / 2 : img->d_h);
         int y;
 
-        for (y = 0; y < h; ++y) {
+        for (y = 0; y < h; ++y)
+        {
             pj_memcpy((char *)output->buf + pos, buf, w);
             pos += w;
             buf += stride;
@@ -817,9 +849,10 @@ static pj_status_t vpx_codec_decode_(pjmedia_vid_codec *codec,
     }
 
     output->size = pos;
-        
+
 on_return:
-    if (!has_frame) {
+    if (!has_frame)
+    {
         pjmedia_event event;
 
         /* Broadcast missing keyframe event */
@@ -828,9 +861,9 @@ on_return:
         pjmedia_event_publish(NULL, codec, &event,
                               PJMEDIA_EVENT_PUBLISH_DEFAULT);
 
-        PJ_LOG(4,(THIS_FILE, "Decode couldn't produce picture, "
-                  "input nframes=%d, concatenated size=%d bytes",
-                  count, whole_len));
+        PJ_LOG(4, (THIS_FILE, "Decode couldn't produce picture, "
+                              "input nframes=%d, concatenated size=%d bytes",
+                   count, whole_len));
 
         output->type = PJMEDIA_FRAME_TYPE_NONE;
         output->size = 0;
@@ -840,4 +873,4 @@ on_return:
     return PJ_SUCCESS;
 }
 
-#endif  /* PJMEDIA_HAS_VPX_CODEC */
+#endif /* PJMEDIA_HAS_VPX_CODEC */
