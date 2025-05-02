@@ -954,6 +954,7 @@ static pj_status_t oh264_got_decoded_frame(pjmedia_vid_codec *codec,
     */
 
     if (!pDst[0] || !pDst[1] || !pDst[2]) {
+        PJ_LOG(5,(THIS_FILE, "oh264_got_decoded_frame: success?!"));
         return PJ_SUCCESS;
     }
 
@@ -972,6 +973,7 @@ static pj_status_t oh264_got_decoded_frame(pjmedia_vid_codec *codec,
         output->type = PJMEDIA_FRAME_TYPE_VIDEO;
     } else {
         /* buffer is damaged, reset size */
+        PJ_LOG(5,(THIS_FILE, "oh264_got_decoded_frame: buffer is damaged, reset size"));
         output->size = 0;
         return PJMEDIA_CODEC_EFRMTOOSHORT;
     }
@@ -1000,6 +1002,7 @@ static pj_status_t oh264_got_decoded_frame(pjmedia_vid_codec *codec,
                               PJMEDIA_EVENT_PUBLISH_DEFAULT);
     }
 
+	PJ_LOG(5,(THIS_FILE, "oh264_got_decoded_frame: success."));
     return PJ_SUCCESS;
 }
 
@@ -1144,6 +1147,56 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
     pj_bzero(pData, sizeof(pData));
     pj_bzero(&sDstBufInfo, sizeof (SBufferInfo));
     ret = oh264_data->dec->DecodeFrame2 (NULL, 0, pData, &sDstBufInfo);
+
+	if (ret != dsErrorFree) {
+    	if (ret & dsFramePending) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Frame pending (not ready yet)."));
+    	}
+
+    	if (ret & dsDepLayerLost) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Dependent layer lost."));
+        }
+
+    	if (ret & dsNoParamSets) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Missing SPS/PPS."));
+       	}
+
+    	if (ret & dsDataErrorConcealed) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Bitstream error concealed."));
+        }
+
+		if (ret & dsRefLost) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Reference frame lost."));
+        }
+
+    	if (ret & dsBitstreamError) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Corrupted bitstream."));
+        }
+
+    	if (ret & dsInitialOptExpected) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Decoder not initialized."));
+        }
+
+    	if (ret & dsInvalidArgument) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Invalid argument."));
+       	}
+
+		if (ret & dsOutOfMemory) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame2: Out of memory due to new request."));
+       	}
+
+    	if (ret & dsDstBufNeedExpan) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Actual picture size exceeds size of dst pBuffer feed in decoder, so need expand its size."));
+        }
+
+    	if (ret & dsRefListNullPtrs) {
+        	PJ_LOG(5,(THIS_FILE, "DecodeFrame: Ref picure list contains null ptrs within uiRefCount range."));
+        }
+	}
+
+	if (sDstBufInfo.iBufferStatus == 0) {
+		PJ_LOG(5,(THIS_FILE, "DecodeFrame: one frame data is not ready."));
+	}
 
     if (sDstBufInfo.iBufferStatus == 1 &&
         !(ret & dsRefLost) && !(ret & dsNoParamSets) &&
