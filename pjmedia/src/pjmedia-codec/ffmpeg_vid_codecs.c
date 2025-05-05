@@ -1859,6 +1859,13 @@ static void ffmpeg_frame_unref(AVFrame *frame)
 #endif
 }
 
+static void print_ffmpeg_error(int errnum) {
+    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0}; // AV_ERROR_MAX_STRING_SIZE is defined as 64
+    av_strerror(errnum, errbuf, sizeof(errbuf));
+    fprintf(stderr, "FFmpeg error: %s", errbuf);
+    PJ_LOG(5,(THIS_FILE, "FFmpeg error: %s", errbuf));
+}
+
 /*
  * Decode frame.
  */
@@ -1937,6 +1944,8 @@ static pj_status_t ffmpeg_codec_decode_whole(pjmedia_vid_codec *codec,
         if (err >= 0) {
             got_picture = PJ_TRUE;
         }
+    } else {
+        print_ffmpeg_error(err);
     }
 #elif LIBAVCODEC_VER_AT_LEAST(52,72)
     err = avcodec_decode_video2(ff->dec_ctx, &avframe, 
@@ -1946,6 +1955,8 @@ static pj_status_t ffmpeg_codec_decode_whole(pjmedia_vid_codec *codec,
                                &got_picture, avpacket.data, avpacket.size);
 #endif
     if (err < 0) {
+        print_ffmpeg_error(err);
+
         pjmedia_event event;
 
         output->type = PJMEDIA_FRAME_TYPE_NONE;
@@ -1970,12 +1981,15 @@ static pj_status_t ffmpeg_codec_decode_whole(pjmedia_vid_codec *codec,
         status = check_decode_result(codec, &input->timestamp,
                                      avframe.key_frame);
         if (status != PJ_SUCCESS) {
+            PJ_LOG(5,(THIS_FILE, "FFmpeg error: decoder result check failed."));
+
             ffmpeg_frame_unref(&avframe);
             return status;
         }
 
         /* Check provided buffer size */
         if (vafp->framebytes > output_buf_len) {
+            PJ_LOG(5,(THIS_FILE, "FFmpeg error: buffer too small."));
             ffmpeg_frame_unref(&avframe);
             return PJ_ETOOSMALL;
         }
@@ -2006,6 +2020,8 @@ static pj_status_t ffmpeg_codec_decode_whole(pjmedia_vid_codec *codec,
         output->size = vafp->framebytes;
         ffmpeg_frame_unref(&avframe);
     } else {
+        print_ffmpeg_error(err);
+
         output->type = PJMEDIA_FRAME_TYPE_NONE;
         output->size = 0;
     }
