@@ -1176,13 +1176,20 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
     }
         
     if (!has_frame) {
+        unsigned profile = 0;
+        unsigned level = 0;
+        oh264_data->dec->GetOption(DECODER_OPTION_PROFILE, &profile);
+        oh264_data->dec->GetOption(DECODER_OPTION_LEVEL, &level);
+
         output->type = PJMEDIA_FRAME_TYPE_NONE;
         output->size = 0;
         output->timestamp = packets[0].timestamp;
 
         PJ_LOG(5,(THIS_FILE, "Decode couldn't produce picture, "
-                  "input nframes=%lu, concatenated size=%d bytes, ret=%d",
-                  (unsigned long)count, whole_len, ret));
+                  "input nframes=%lu, concatenated size=%d bytes, ret=%d, profile:%d, level=%d",
+                  (unsigned long)count, whole_len, ret, profile, level));
+
+
     }
 
     return status;
