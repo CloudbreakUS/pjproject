@@ -1102,6 +1102,16 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
 
         start = oh264_data->dec_buf + buf_pos;
 
+        if (frm_size >= 1 + 3) { // ensure there's at least 1 byte after the 3-byte start code
+            pj_uint8_t nal_unit_header = *(start + 3);
+            pj_uint8_t nal_unit_type = nal_unit_header & 0x1F;
+
+            if (nal_unit_type == 7 || nal_unit_type == 8) {
+                // Log the NAL unit type for SPS and PPS units
+                PJ_LOG(5, (THIS_FILE, "NAL unit type: %u", nal_unit_type));
+            }
+        }
+
         /* Decode */
         ret = oh264_data->dec->DecodeFrame2( start, frm_size, pData,
                                              &sDstBufInfo);
