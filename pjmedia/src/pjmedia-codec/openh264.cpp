@@ -1106,7 +1106,7 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
             pj_uint8_t nal_unit_header = *(start + 3);
             pj_uint8_t nal_unit_type = nal_unit_header & 0x1F;
 
-            if (nal_unit_type == 7 || nal_unit_type == 8) {
+            if (nal_unit_type == 5 || nal_unit_type == 7 || nal_unit_type == 8) {
                 // Log the NAL unit type for SPS and PPS units
                 PJ_LOG(5, (THIS_FILE, "NAL unit type: %u", nal_unit_type));
             }
