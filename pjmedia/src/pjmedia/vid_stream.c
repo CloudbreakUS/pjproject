@@ -50,8 +50,8 @@
  * The trace will contain JB operation timestamp, frame info, RTP info, and
  * the JB state right after the operation.
  */
-#define TRACE_JB                        0       /* Enable/disable trace.    */
-#define TRACE_JB_PATH_PREFIX            ""      /* Optional path/prefix
+#define TRACE_JB                        1       /* Enable/disable trace.    */
+#define TRACE_JB_PATH_PREFIX            "cloudbreak"      /* Optional path/prefix
                                                    for the CSV filename.    */
 #if TRACE_JB
 #   include <pj/file_io.h>
@@ -281,65 +281,6 @@ PJ_INLINE(int) trace_jb_print_state(pjmedia_vid_stream *stream,
     p += len;
     *buf = p;
     return 0;
-}
-
-static void trace_jb_get(pjmedia_vid_stream *stream, pjmedia_jb_frame_type ft,
-                         pj_size_t fsize)
-{
-    char *p = stream->trace_jb_buf;
-    char *endp = stream->trace_jb_buf + PJ_LOG_MAX_SIZE;
-    pj_ssize_t len = 0;
-    const char* ft_st;
-
-    if (!TRACE_JB_OPENED(stream))
-        return;
-
-    /* Print timestamp. */
-    if (trace_jb_print_timestamp(&p, endp-p))
-        goto on_insuff_buffer;
-
-    /* Print frame type and size */
-    switch(ft) {
-        case PJMEDIA_JB_MISSING_FRAME:
-            ft_st = "missing";
-            break;
-        case PJMEDIA_JB_NORMAL_FRAME:
-            ft_st = "normal";
-            break;
-        case PJMEDIA_JB_ZERO_PREFETCH_FRAME:
-            ft_st = "prefetch";
-            break;
-        case PJMEDIA_JB_ZERO_EMPTY_FRAME:
-            ft_st = "empty";
-            break;
-        default:
-            ft_st = "unknown";
-            break;
-    }
-
-    /* Print operation, size, frame count, frame type */
-    len = pj_ansi_snprintf(p, endp-p, "GET,%d,1,%s,,,,", fsize, ft_st);
-    if ((len < 0) || (len >= endp-p))
-        goto on_insuff_buffer;
-    p += len;
-
-    /* Print JB state */
-    if (trace_jb_print_state(stream, &p, endp-p))
-        goto on_insuff_buffer;
-
-    /* Print end of line */
-    if (endp-p < 2)
-        goto on_insuff_buffer;
-    *p++ = '\n';
-
-    /* Write and flush */
-    len = p - stream->trace_jb_buf;
-    pj_file_write(stream->trace_jb_fd, stream->trace_jb_buf, &len);
-    pj_file_flush(stream->trace_jb_fd);
-    return;
-
-on_insuff_buffer:
-    pj_assert(!"Trace buffer too small, check PJ_LOG_MAX_SIZE!");
 }
 
 static void trace_jb_put(pjmedia_vid_stream *stream,
@@ -993,7 +934,7 @@ static void on_rx_rtp( pjmedia_tp_cb_param *param)
                                 pj_ntohs(hdr->seq), pj_ntohl(hdr->ts), NULL);
 
 #if TRACE_JB
-        trace_jb_put(stream, hdr, payloadlen, count);
+        trace_jb_put(stream, hdr, payloadlen, 0 /*put zero to fix compilation*/);
 #endif
 
     }
@@ -2088,7 +2029,7 @@ PJ_DEF(pj_status_t) pjmedia_vid_stream_create(
 
         pj_ansi_snprintf(trace_name, sizeof(trace_name),
                          TRACE_JB_PATH_PREFIX "%s.csv",
-                         channel->port.info.name.ptr);
+                         stream->name.ptr);
         status = pj_file_open(pool, trace_name, PJ_O_RDWR,
                               &stream->trace_jb_fd);
         if (status != PJ_SUCCESS) {
