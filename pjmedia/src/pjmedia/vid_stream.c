@@ -862,12 +862,14 @@ static void on_rx_rtp( pjmedia_tp_cb_param *param)
 
     /* Skip bad RTP packet */
     if (seq_st.status.flag.bad) {
+        PJ_LOG(4,(channel->port.info.name.ptr, "Skip bad RTP packet"));
         pkt_discarded = PJ_TRUE;
         goto on_return;
     }
 
     /* Ignore if payloadlen is zero */
     if (payloadlen == 0) {
+        PJ_LOG(4,(channel->port.info.name.ptr, "Ignore if payloadlen is zero"));
         pkt_discarded = PJ_TRUE;
         goto on_return;
     }
@@ -897,6 +899,7 @@ static void on_rx_rtp( pjmedia_tp_cb_param *param)
                      * - we have ever received packet with bad ssrc from
                      *   remote address and this packet also has bad ssrc.
                      */
+                    PJ_LOG(4,(channel->port.info.name.ptr, "Discard packet due to we have ever received packet with bad ssrc"));
                     pkt_discarded = PJ_TRUE;
                     goto on_return;
                 }
